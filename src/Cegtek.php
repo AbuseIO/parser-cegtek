@@ -2,7 +2,6 @@
 
 namespace AbuseIO\Parsers;
 
-use AbuseIO\Parsers\Parser;
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
 use Ddeboer\DataImport\Filter;
@@ -15,51 +14,58 @@ class Cegtek extends Parser
 {
     public $parsedMail;
     public $arfMail;
-    public $config;
 
-    public function __construct($parsedMail, $arfMail, $config = false)
+    /**
+     * Create a new Cegtek instance
+     */
+    public function __construct($parsedMail, $arfMail)
     {
-        $this->configFile = __DIR__ . '/../config/' . basename(__FILE__);
-        $this->config = $config;
         $this->parsedMail = $parsedMail;
         $this->arfMail = $arfMail;
-
     }
 
+    /**
+     * Parse attachments
+     * @return Array    Returns array with failed or success data
+     *                  (See parser-common/src/Parser.php) for more info.
+     */
     public function parse()
     {
-
         Log::info(
             get_class($this) . ': Received message from: ' .
             $this->parsedMail->getHeader('from') . " with subject: '" .
             $this->parsedMail->getHeader('subject') . "' arrived at parser: " .
-            $this->config['parser']['name']
+            config('Cegtek.parser.name')
         );
 
-        $events = [];
-        $feed   = 'default';
+        $events     = [ ];
+        $feedName   = 'default';
 
         // XML is placed in the body
-        if (preg_match('/(?<=- ----Start ACNS XML\n)(.*)(?=\n- ----End ACNS XML)/s', $this->parsedMail->getMessageBody(), $regs)) {
-            $xml    = $regs[0];
+        if (preg_match(
+            '/(?<=- ----Start ACNS XML\n)(.*)(?=\n- ----End ACNS XML)/s',
+            $this->parsedMail->getMessageBody(),
+            $regs
+        )) {
+            $xml = $regs[0];
         }
 
-        if (!isset($this->config['feeds'][$feed])) {
-            return $this->failed("Detected feed ${feed} is unknown. No sense in trying to parse.");
-        } else {
-            $feedConfig = $this->config['feeds'][$feed];
+        if (empty(config("Cegtek.feeds.{$feedName}"))) {
+            return $this->failed(
+                "Detected feed '{$feedName}' is unknown."
+            );
         }
 
-        if ($feedConfig['enabled'] !== true) {
-            return $this->success(
-                "Detected feed ${feed} has been disabled by configuration. No sense in trying to parse."
+        if (config("Cegtek.feeds.{$feedName}.enabled") !== true) {
+            return $this->failed(
+                "Detected feed '{$feedName}' has been disabled by configuration."
             );
         }
 
         if (!empty($xml) && $xml = simplexml_load_string($xml)) {
             // Work around the crappy timestamp used by IP-echelon, i.e.: 2015-05-06T05-00-00UTC
             // We loose some timezone information, but hey it's close enough ;)
-            if (preg_match('/^([0-9-]+)T([0-9]{2})-([0-9]{2})-([0-9]{2})/',$xml->Source->TimeStamp,$regs)) {
+            if (preg_match('/^([0-9-]+)T([0-9]{2})-([0-9]{2})-([0-9]{2})/', $xml->Source->TimeStamp, $regs)) {
                 $timestamp = strtotime($regs[1].' '.$regs[2].':'.$regs[3].':'.$regs[4]);
                 // Fall back to now if we can't parse the timestamp
             } else {
@@ -78,8 +84,8 @@ class Cegtek extends Parser
                 'ip'            => (string)$xml->Source->IP_Address,
                 'domain'        => false,
                 'uri'           => false,
-                'class'         => $feedConfig['class'],
-                'type'          => $feedConfig['type'],
+                'class'         => config("Cegtek.feeds.{$feedName}.class"),
+                'type'          => config("Cegtek.feeds.{$feedName}.type"),
                 'timestamp'     => $timestamp,
                 'information'   => json_encode($infoBlob),
             ];
@@ -87,7 +93,7 @@ class Cegtek extends Parser
             $events[] = $event;
         } else {
             return $this->failed(
-                "Unable to get a valid XML. No sense in trying to parse."
+                "Unable to get a valid XML."
             );
         }
 

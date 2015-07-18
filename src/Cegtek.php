@@ -57,7 +57,7 @@ class Cegtek extends Parser
         }
 
         if (config("Cegtek.feeds.{$feedName}.enabled") !== true) {
-            return $this->failed(
+            return $this->success(
                 "Detected feed '{$feedName}' has been disabled by configuration."
             );
         }

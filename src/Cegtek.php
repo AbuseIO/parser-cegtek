@@ -5,10 +5,8 @@ namespace AbuseIO\Parsers;
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
 use Ddeboer\DataImport\Filter;
-use Illuminate\Filesystem\Filesystem;
-use SplFileObject;
-use Uuid;
 use Log;
+use ReflectionClass;
 
 class Cegtek extends Parser
 {
@@ -31,11 +29,15 @@ class Cegtek extends Parser
      */
     public function parse()
     {
+        // Generalize the local config based on the parser class name.
+        $reflect = new ReflectionClass($this);
+        $configBase = 'parsers.' . $reflect->getShortName();
+
         Log::info(
             get_class($this) . ': Received message from: ' .
             $this->parsedMail->getHeader('from') . " with subject: '" .
             $this->parsedMail->getHeader('subject') . "' arrived at parser: " .
-            config('parsers.Cegtek.parser.name')
+            config("{$configBase}.parser.name")
         );
 
         $events     = [ ];
@@ -50,7 +52,7 @@ class Cegtek extends Parser
             $xml = $regs[0];
         }
 
-        if (empty(config("parsers.Cegtek.feeds.{$feedName}"))) {
+        if (empty(config("{$configBase}.feeds.{$feedName}"))) {
             return $this->failed(
                 "Detected feed '{$feedName}' is unknown."
             );
@@ -59,7 +61,7 @@ class Cegtek extends Parser
         // If the feed is disabled, then just return as there is nothing more to do then
         // however its not a 'fail' in the sense we should start alerting as it was disabled
         // by design or user configuration
-        if (config("parsers.Cegtek.feeds.{$feedName}.enabled") !== true) {
+        if (config("{$configBase}.feeds.{$feedName}.enabled") !== true) {
             return $this->success($events);
         }
 
@@ -81,12 +83,12 @@ class Cegtek extends Parser
             ];
 
             $event = [
-                'source'        => config('parsers.Cegtek.parser.name'),
+                'source'        => config("{$configBase}.parser.name"),
                 'ip'            => (string)$xml->Source->IP_Address,
                 'domain'        => false,
                 'uri'           => false,
-                'class'         => config("parsers.Cegtek.feeds.{$feedName}.class"),
-                'type'          => config("parsers.Cegtek.feeds.{$feedName}.type"),
+                'class'         => config("{$configBase}.feeds.{$feedName}.class"),
+                'type'          => config("{$configBase}.feeds.{$feedName}.type"),
                 'timestamp'     => $timestamp,
                 'information'   => json_encode($infoBlob),
             ];

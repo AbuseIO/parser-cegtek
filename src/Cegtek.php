@@ -56,10 +56,11 @@ class Cegtek extends Parser
             );
         }
 
+        // If the feed is disabled, then just return as there is nothing more to do then
+        // however its not a 'fail' in the sense we should start alerting as it was disabled
+        // by design or user configuration
         if (config("Cegtek.feeds.{$feedName}.enabled") !== true) {
-            return $this->success(
-                "Detected feed '{$feedName}' has been disabled by configuration."
-            );
+            return $this->success($events);
         }
 
         if (!empty($xml) && $xml = simplexml_load_string($xml)) {

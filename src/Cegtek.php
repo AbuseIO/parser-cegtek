@@ -35,7 +35,7 @@ class Cegtek extends Parser
             get_class($this) . ': Received message from: ' .
             $this->parsedMail->getHeader('from') . " with subject: '" .
             $this->parsedMail->getHeader('subject') . "' arrived at parser: " .
-            config('Cegtek.parser.name')
+            config('parsers.Cegtek.parser.name')
         );
 
         $events     = [ ];
@@ -50,7 +50,7 @@ class Cegtek extends Parser
             $xml = $regs[0];
         }
 
-        if (empty(config("Cegtek.feeds.{$feedName}"))) {
+        if (empty(config("parsers.Cegtek.feeds.{$feedName}"))) {
             return $this->failed(
                 "Detected feed '{$feedName}' is unknown."
             );
@@ -59,7 +59,7 @@ class Cegtek extends Parser
         // If the feed is disabled, then just return as there is nothing more to do then
         // however its not a 'fail' in the sense we should start alerting as it was disabled
         // by design or user configuration
-        if (config("Cegtek.feeds.{$feedName}.enabled") !== true) {
+        if (config("parsers.Cegtek.feeds.{$feedName}.enabled") !== true) {
             return $this->success($events);
         }
 
@@ -81,12 +81,12 @@ class Cegtek extends Parser
             ];
 
             $event = [
-                'source'        => $this->config['parser']['name'],
+                'source'        => config('parsers.Cegtek.parser.name'),
                 'ip'            => (string)$xml->Source->IP_Address,
                 'domain'        => false,
                 'uri'           => false,
-                'class'         => config("Cegtek.feeds.{$feedName}.class"),
-                'type'          => config("Cegtek.feeds.{$feedName}.type"),
+                'class'         => config("parsers.Cegtek.feeds.{$feedName}.class"),
+                'type'          => config("parsers.Cegtek.feeds.{$feedName}.type"),
                 'timestamp'     => $timestamp,
                 'information'   => json_encode($infoBlob),
             ];

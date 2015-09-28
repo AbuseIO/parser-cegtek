@@ -40,8 +40,10 @@ class Cegtek extends Parser
             config("{$configBase}.parser.name")
         );
 
-        $events     = [ ];
-        $feedName   = 'default';
+        $events = [ ];
+        $report = [ ];
+
+        $this->feedName = 'default';
 
         // XML is placed in the body
         if (preg_match(
@@ -49,46 +51,50 @@ class Cegtek extends Parser
             $this->parsedMail->getMessageBody(),
             $regs
         )) {
-            $xml = $regs[0];
+            $report = $regs[0];
         }
 
-        if (empty(config("{$configBase}.feeds.{$feedName}"))) {
+        if (!$this->isKnownFeed()) {
             return $this->failed(
-                "Detected feed '{$feedName}' is unknown."
+                "Detected feed {$this->feedName} is unknown."
             );
         }
 
-        // If the feed is disabled, then just return as there is nothing more to do then
-        // however its not a 'fail' in the sense we should start alerting as it was disabled
-        // by design or user configuration
-        if (config("{$configBase}.feeds.{$feedName}.enabled") !== true) {
+        if (!$this->isEnabledFeed()) {
             return $this->success($events);
         }
 
-        if (!empty($xml) && $xml = simplexml_load_string($xml)) {
+        if (!$this->hasRequiredFields($report)) {
+            return $this->failed(
+                "Required field {$this->requiredField} is missing or the config is incorrect."
+            );
+        }
+
+        if (!empty($report) && $report = simplexml_load_string($report)) {
             // Work around the crappy timestamp used by IP-echelon, i.e.: 2015-05-06T05-00-00UTC
             // We loose some timezone information, but hey it's close enough ;)
-            if (preg_match('/^([0-9-]+)T([0-9]{2})-([0-9]{2})-([0-9]{2})/', $xml->Source->TimeStamp, $regs)) {
+            if (preg_match('/^([0-9-]+)T([0-9]{2})-([0-9]{2})-([0-9]{2})/', $report->Source->TimeStamp, $regs)) {
                 $timestamp = strtotime($regs[1].' '.$regs[2].':'.$regs[3].':'.$regs[4]);
                 // Fall back to now if we can't parse the timestamp
             } else {
                 $timestamp = time();
             }
 
+            // The XML contains so many crap you cant even think about filters here so we grab the fields ourselves.
             $infoBlob = [
-                'type'          => (string)$xml->Source->Type,
-                'port'          => (string)$xml->Source->Port,
-                'number_files'  => (string)$xml->Source->Number_Files,
-                'complainant'   => (string)$xml->Complainant->Entity,
+                'type'          => (string)$report->Source->Type,
+                'port'          => (string)$report->Source->Port,
+                'number_files'  => (string)$report->Source->Number_Files,
+                'complainant'   => (string)$report->Complainant->Entity,
             ];
 
             $event = [
                 'source'        => config("{$configBase}.parser.name"),
-                'ip'            => (string)$xml->Source->IP_Address,
+                'ip'            => (string)$report->Source->IP_Address,
                 'domain'        => false,
                 'uri'           => false,
-                'class'         => config("{$configBase}.feeds.{$feedName}.class"),
-                'type'          => config("{$configBase}.feeds.{$feedName}.type"),
+                'class'         => config("{$configBase}.feeds.{$this->feedName}.class"),
+                'type'          => config("{$configBase}.feeds.{$this->feedName}.type"),
                 'timestamp'     => $timestamp,
                 'information'   => json_encode($infoBlob),
             ];

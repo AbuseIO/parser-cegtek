@@ -24,8 +24,6 @@ class Cegtek extends Parser
      */
     public function parse()
     {
-        $this->feedName = 'default';
-
         // XML is placed in the body
         if (preg_match(
             '/(?<=- ----Start ACNS XML\n)(.*)(?=\n- ----End ACNS XML)/s',
@@ -33,6 +31,7 @@ class Cegtek extends Parser
             $regs
         )) {
             $report = $regs[0];
+            $this->feedName = 'default';
 
             if (!empty($report) && $report = simplexml_load_string($report)) {
 
@@ -75,9 +74,11 @@ class Cegtek extends Parser
                         'information'   => json_encode($infoBlob),
                     ];
                 }
-            } else {
+            } else { // We cannot pass XML validation or load object
                 $this->warningCount++;
             }
+        } else { // We cannot collect XML
+            $this->warningCount++;
         }
 
         return $this->success();

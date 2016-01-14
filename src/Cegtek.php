@@ -1,6 +1,7 @@
 <?php
 
 namespace AbuseIO\Parsers;
+
 use AbuseIO\Models\Incident;
 
 /**
@@ -78,7 +79,7 @@ class Cegtek extends Parser
                     $incident->timestamp   = $timestamp;
                     $incident->information = json_encode($infoBlob);
 
-                    $this->events[] = $incident;
+                    $this->incidents[] = $incident;
 
                 }
             } else { // We cannot pass XML validation or load object

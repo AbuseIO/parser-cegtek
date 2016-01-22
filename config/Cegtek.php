@@ -14,7 +14,7 @@ return [
 
     'feeds' => [
         'default' => [
-            'class'     => 'Copyright Infringement',
+            'class'     => 'COPYRIGHT_INFRINGEMENT',
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
